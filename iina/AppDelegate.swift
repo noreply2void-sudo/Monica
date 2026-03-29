@@ -47,6 +47,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
   private var commandLineStatus = CommandLineStatus()
 
   private var isTerminating = false
+  
+  /** Array to hold strong references to MonicaView windows to prevent them from being deallocated. */
+  private var monicaWindows: [NSWindow] = []
 
   /// Longest time to wait for asynchronous shutdown tasks to finish before giving up on waiting and proceeding with termination.
   ///
@@ -785,7 +788,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     
     // Open other files with the regular player
     if !otherUrls.isEmpty {
-      if PlayerCore.openURLs(otherUrls) == 0 && imageUrls.isEmpty {
+      if PlayerCore.openURLs(otherUrls) == 0 && otherUrls.count > 0 {
         Utility.showAlert("nothing_to_open")
       }
     }
@@ -801,7 +804,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     )
     window.title = "MonicaView"
     window.center()
-    window.isReleasedWhenClosed = true
+    window.isReleasedWhenClosed = false  // 改为false，我们需要手动管理窗口生命周期
     
     let viewController = MonicaViewController()
     viewController.delegate = self
@@ -810,9 +813,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     viewController.loadFile(url)
     window.makeKeyAndOrderFront(nil)
     
+    // 保存窗口引用以防止被释放
+    monicaWindows.append(window)
+    
+    // 设置窗口关闭时的回调
+    NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: nil) { [weak self] notification in
+      guard let self = self, let window = notification.object as? NSWindow else { return }
+      self.monicaWindows.removeAll { $0 == window }
+    }
+    
     // 确保MonicaView获得第一响应者状态
-    if let monicaView = viewController.view as? MonicaView {
-      window.makeFirstResponder(monicaView)
+    DispatchQueue.main.async {
+      if let monicaView = viewController.view as? MonicaView {
+        window.makeFirstResponder(monicaView)
+      }
     }
   }
 

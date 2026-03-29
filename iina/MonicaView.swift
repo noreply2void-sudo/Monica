@@ -127,10 +127,16 @@ MonicaView
             currentIndex = 0
             directoryLoaded = false
             updateWindowTitle()
-            delegate?.monicaView(self, didLoadFile: fileURL)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.delegate?.monicaView(self, didLoadFile: fileURL)
+            }
         } else if isVideoFile(fileURL) {
             // Handle video file - delegate to main app
-            delegate?.monicaView(self, didRequestOpenVideo: fileURL)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.delegate?.monicaView(self, didRequestOpenVideo: fileURL)
+            }
         }
     }
     
@@ -225,7 +231,10 @@ MonicaView
         hintLabel.isHidden = true
         window?.makeFirstResponder(self)
         updateWindowTitle()
-        delegate?.monicaView(self, didLoadFile: imageURL)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.delegate?.monicaView(self, didLoadFile: imageURL)
+        }
     }
     
     private func previousImage() {
@@ -260,7 +269,10 @@ MonicaView
             imageFiles.remove(at: currentIndex)
             if currentIndex >= imageFiles.count { currentIndex = max(0, imageFiles.count - 1) }
             if !imageFiles.isEmpty { updateImageView() } else { imageView.image = nil; updateWindowTitle() }
-            delegate?.monicaView(self, didDeleteFile: fileURL)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.delegate?.monicaView(self, didDeleteFile: fileURL)
+            }
         } catch {}
     }
     
@@ -336,7 +348,12 @@ class MonicaViewController: NSViewController {
     override func viewDidAppear() {
         super.viewDidAppear()
         // 确保MonicaView在视图出现时获得第一响应者状态
-        view.window?.makeFirstResponder(monicaView)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if self.view.window != nil {
+                self.view.window?.makeFirstResponder(self.monicaView)
+            }
+        }
     }
     
     func loadFile(_ fileURL: URL) {
