@@ -770,8 +770,49 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
 
     // open pending files
     pendingFilesForOpenFile.removeAll()
-    if PlayerCore.openURLs(urls) == 0 {
-      Utility.showAlert("nothing_to_open")
+    
+    // Check if any of the files are images
+    let imageExtensions = ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "webp"]
+    let imageUrls = urls.filter { imageExtensions.contains($0.pathExtension.lowercased()) }
+    let otherUrls = urls.filter { !imageExtensions.contains($0.pathExtension.lowercased()) }
+    
+    // Open image files with MonicaView
+    if !imageUrls.isEmpty {
+      for url in imageUrls {
+        openImageWithMonicaView(url)
+      }
+    }
+    
+    // Open other files with the regular player
+    if !otherUrls.isEmpty {
+      if PlayerCore.openURLs(otherUrls) == 0 && imageUrls.isEmpty {
+        Utility.showAlert("nothing_to_open")
+      }
+    }
+  }
+  
+  /** Open an image file with MonicaView */
+  func openImageWithMonicaView(_ url: URL) {
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+      styleMask: [.titled, .closable, .miniaturizable, .resizable],
+      backing: .buffered,
+      defer: false
+    )
+    window.title = "MonicaView"
+    window.center()
+    window.isReleasedWhenClosed = true
+    
+    let viewController = MonicaViewController()
+    viewController.delegate = self
+    window.contentViewController = viewController
+    
+    viewController.loadFile(url)
+    window.makeKeyAndOrderFront(nil)
+    
+    // 确保MonicaView获得第一响应者状态
+    if let monicaView = viewController.view as? MonicaView {
+      window.makeFirstResponder(monicaView)
     }
   }
 
@@ -1462,6 +1503,22 @@ class RemoteCommandController {
       // Now Playing behavior by delaying the re-enabling.
       DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 1) { self.enable() }
     }
+  }
+}
+
+// MARK: - MonicaViewDelegate
+extension AppDelegate: MonicaViewDelegate {
+  func monicaView(_ monicaView: MonicaView, didLoadFile fileURL: URL) {
+    // Handle image file loaded
+  }
+  
+  func monicaView(_ monicaView: MonicaView, didDeleteFile fileURL: URL) {
+    // Handle image file deleted
+  }
+  
+  func monicaView(_ monicaView: MonicaView, didRequestOpenVideo fileURL: URL) {
+    // Handle video file request - open with regular player
+    PlayerCore.openURLs([fileURL])
   }
 }
 
